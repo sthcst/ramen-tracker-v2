@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
 import { toast } from "sonner";
 
+/* ---------- helpers ---------- */
+const cx = (...c) => c.filter(Boolean).join(" ");
 const currency = (n) => {
   const num = Number(n);
   return Number.isFinite(num)
@@ -12,14 +14,49 @@ const load = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JS
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const KEY = { menu: "rn_menu", purchases: "rn_purchases", sales: "rn_sales", biz: "rn_business" };
 
+/* ---------- tiny UI kit ---------- */
+function Logo({ className = "h-6 w-6 text-white" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      {/* bowl */}
+      <path d="M4 13a8 8 0 0016 0H4z" />
+      {/* steam/noodles */}
+      <path d="M8 4c1.5 1.2 1.5 2.8 0 4M12 4c1.5 1.2 1.5 2.8 0 4M16 4c1.5 1.2 1.5 2.8 0 4" />
+    </svg>
+  );
+}
+
+function Button({ variant = "primary", className = "", ...props }) {
+  const base = "h-10 px-4 rounded-xl font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2";
+  const styles = {
+    primary: "bg-ramen-600 hover:bg-ramen-700 text-white focus:ring-ramen-400",
+    outline: "bg-white border hover:bg-neutral-50 focus:ring-ramen-300",
+    subtle: "bg-neutral-100 hover:bg-neutral-200 text-neutral-800",
+    danger: "bg-red-600 hover:bg-red-700 text-white focus:ring-red-400",
+  };
+  return <button className={cx(base, styles[variant], className)} {...props} />;
+}
+function Input(props) {
+  return <input {...props} className={cx("w-full h-10 rounded-xl border px-3 bg-white/90 shadow-sm focus:ring-2 focus:ring-ramen-300 focus:border-ramen-300", props.className)} />;
+}
+function Select(props) {
+  return <select {...props} className={cx("w-full h-10 rounded-xl border px-3 bg-white/90 shadow-sm focus:ring-2 focus:ring-ramen-300", props.className)} />;
+}
+function Textarea(props) {
+  return <textarea {...props} className={cx("w-full rounded-xl border px-3 py-2 bg-white/90 shadow-sm focus:ring-2 focus:ring-ramen-300", props.className)} />;
+}
+function Card({ children, className }) {
+  return <div className={cx("bg-white border rounded-2xl p-4 shadow-card", className)}>{children}</div>;
+}
+
 function Section({ title, children, right }) {
   return (
-    <section className="mb-4">
+    <section className="mb-5">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-lg font-semibold">{title}</h2>
         <div className="flex gap-2">{right}</div>
       </div>
-      <div className="bg-white rounded-2xl border p-4 shadow-sm">{children}</div>
+      <Card>{children}</Card>
     </section>
   );
 }
@@ -33,20 +70,28 @@ function Tabs({ value, onChange }) {
     { id: "backup", name: "Backup" },
   ];
   return (
-    <div data-tabs className="grid grid-cols-5 gap-2 sticky top-0 bg-neutral-50 py-2 z-10">
-      {tabs.map(t => (
-        <button
-          key={t.id}
-          onClick={() => onChange(t.id)}
-          className={`h-10 rounded-xl border text-sm ${value===t.id ? "bg-neutral-900 text-white border-neutral-900" : "bg-white"}`}
-        >
-          {t.name}
-        </button>
-      ))}
+    <div className="sticky top-[60px] z-10 mb-3">
+      <div className="bg-white/70 backdrop-blur rounded-2xl border p-1 flex gap-1">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className={cx(
+              "h-10 flex-1 rounded-xl text-sm font-medium transition",
+              value === t.id
+                ? "bg-ramen-600 text-white shadow"
+                : "bg-transparent hover:bg-neutral-100 text-neutral-800"
+            )}
+          >
+            {t.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
+/* ---------- App ---------- */
 export default function App() {
   const [biz, setBiz] = useState(() => load(KEY.biz, { name: "Ramen Naijiro", owner: "Mom", location: "Santiago, Philippines" }));
   const [menu, setMenu] = useState(() => load(KEY.menu, [{ id: crypto.randomUUID(), name: "Classic Ramen", price: 120 }]));
@@ -69,6 +114,7 @@ export default function App() {
 
   const menuById = useMemo(() => Object.fromEntries(menu.map(m => [m.id, m])), [menu]);
 
+  // Filters
   const fPurchases = useMemo(() => {
     const s = new Date(range.start); const e = new Date(range.end); e.setHours(23, 59, 59, 999);
     return purchases.filter(p => new Date(p.date) >= s && new Date(p.date) <= e);
@@ -87,14 +133,11 @@ export default function App() {
 
   const groupedSales = useMemo(() => {
     const map = new Map();
-    for (const s of fSales) {
-      const key = range.groupByDay ? s.date : "all";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(s);
-    }
+    for (const s of fSales) { const key = range.groupByDay ? s.date : "all"; if (!map.has(key)) map.set(key, []); map.get(key).push(s); }
     return map;
   }, [fSales, range.groupByDay]);
 
+  // Handlers
   const addMenuItem = () => {
     const name = newItem.name.trim();
     const price = Number(newItem.price);
@@ -126,9 +169,7 @@ export default function App() {
     toast.success("Purchase saved");
   };
 
-  const addSaleQuick = (productId) =>
-    setSales(prev => [{ id: crypto.randomUUID(), date: todayISO(), productId, qty: 1 }, ...prev]);
-
+  const addSaleQuick = (productId) => setSales(prev => [{ id: crypto.randomUUID(), date: todayISO(), productId, qty: 1 }, ...prev]);
   const addSale = () => {
     if (!sForm.productId) return toast.error("Pick a product");
     const qty = Number(sForm.qty || 0);
@@ -140,66 +181,59 @@ export default function App() {
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify({ biz, menu, purchases, sales }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `ramen-naijiro-backup-${todayISO()}.json`; a.click();
-    URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `ramen-naijiro-backup-${todayISO()}.json`; a.click(); URL.revokeObjectURL(url);
   };
   const importJSON = (file) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result);
-        setBiz(data.biz || biz);
-        setMenu(Array.isArray(data.menu) ? data.menu : menu);
-        setPurchases(Array.isArray(data.purchases) ? data.purchases : purchases);
-        setSales(Array.isArray(data.sales) ? data.sales : sales);
-        toast.success("Backup loaded");
-      } catch {
-        toast.error("Could not import file");
-      }
-    };
+    reader.onload = () => { try {
+      const data = JSON.parse(reader.result);
+      setBiz(data.biz || biz);
+      setMenu(Array.isArray(data.menu) ? data.menu : menu);
+      setPurchases(Array.isArray(data.purchases) ? data.purchases : purchases);
+      setSales(Array.isArray(data.sales) ? data.sales : sales);
+      toast.success("Backup loaded");
+    } catch { toast.error("Could not import file"); } };
     reader.readAsText(file);
   };
-  const clearAll = () => {
-    if (confirm("This will clear all data on this device. Proceed?")) {
-      setMenu([]); setPurchases([]); setSales([]);
-    }
-  };
+  const clearAll = () => { if (confirm("This will clear all data on this device. Proceed?")) { setMenu([]); setPurchases([]); setSales([]); } };
   const printSummary = () => window.print();
 
   useEffect(() => {
     if (autoTotal) {
-      const qty = Number(pForm.qty || 0);
-      const unit = Number(pForm.unit || 0);
-      const t = Math.round(qty * unit * 100) / 100;
-      if (t > 0) setPForm(p => ({ ...p, total: String(t) }));
+      const qty = Number(pForm.qty || 0); const unit = Number(pForm.unit || 0);
+      const t = Math.round(qty * unit * 100) / 100; if (t > 0) setPForm(p => ({ ...p, total: String(t) }));
     }
   }, [pForm.qty, pForm.unit, autoTotal]);
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <header className="py-3 sticky top-0 bg-neutral-50/80 backdrop-blur border-b z-20">
-        <div className="max-w-3xl mx-auto px-4 flex items-center justify-between">
-          <h1 className="text-base font-semibold">{biz.name} Tracker</h1>
-          <small className="text-xs text-neutral-600">{biz.location}</small>
+    <div className="min-h-screen bg-gradient-to-b from-ramen-50 to-neutral-50 text-neutral-900 font-sans">
+      {/* Top bar */}
+      <div className="bg-ramen-600 text-white">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Logo />
+          <div className="leading-tight">
+            <div className="text-sm font-semibold">Ramen Naijiro</div>
+            <div className="text-xs/4 opacity-90">{biz.location}</div>
+          </div>
+          <div className="ml-auto text-xs opacity-90">{biz.owner}</div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-3xl mx-auto px-4 py-4 pb-24">
+      {/* Content */}
+      <main className="max-w-3xl mx-auto px-4 py-5 pb-28">
         <Section title="Business info">
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-neutral-600">Business name</label>
-              <input className="w-full h-10 rounded-md border px-3" value={biz.name} onChange={e => setBiz({ ...biz, name: e.target.value })} />
+              <Input value={biz.name} onChange={e => setBiz({ ...biz, name: e.target.value })} />
             </div>
             <div>
               <label className="text-xs text-neutral-600">Owner</label>
-              <input className="w-full h-10 rounded-md border px-3" value={biz.owner} onChange={e => setBiz({ ...biz, owner: e.target.value })} />
+              <Input value={biz.owner} onChange={e => setBiz({ ...biz, owner: e.target.value })} />
             </div>
             <div>
               <label className="text-xs text-neutral-600">Location</label>
-              <input className="w-full h-10 rounded-md border px-3" value={biz.location} onChange={e => setBiz({ ...biz, location: e.target.value })} />
+              <Input value={biz.location} onChange={e => setBiz({ ...biz, location: e.target.value })} />
             </div>
           </div>
         </Section>
@@ -211,16 +245,16 @@ export default function App() {
             <div className="grid sm:grid-cols-6 gap-3 items-end">
               <div className="sm:col-span-3">
                 <label className="text-xs text-neutral-600">Item name</label>
-                <input className="w-full h-10 rounded-md border px-3" placeholder="Tonkotsu Ramen" value={newItem.name} onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
+                <Input placeholder="Tonkotsu Ramen" value={newItem.name} onChange={e => setNewItem({ ...newItem, name: e.target.value })} />
               </div>
               <div className="sm:col-span-2">
                 <label className="text-xs text-neutral-600">Price (PHP)</label>
-                <input type="number" inputMode="decimal" className="w-full h-10 rounded-md border px-3" placeholder="120" value={newItem.price} onChange={e => setNewItem({ ...newItem, price: e.target.value })} />
+                <Input type="number" inputMode="decimal" placeholder="120" value={newItem.price} onChange={e => setNewItem({ ...newItem, price: e.target.value })} />
               </div>
-              <button onClick={addMenuItem} className="h-10 rounded-md bg-neutral-900 text-white">Add</button>
+              <Button onClick={addMenuItem}>Add</Button>
             </div>
 
-            <div className="mt-3 rounded-xl border overflow-hidden">
+            <div className="mt-3 rounded-2xl border overflow-hidden bg-white">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-100">
                   <tr>
@@ -233,9 +267,9 @@ export default function App() {
                   {menu.length === 0 && <tr><td className="p-3 text-neutral-500" colSpan={3}>No items yet</td></tr>}
                   {menu.map(m => (
                     <tr key={m.id} className="border-t">
-                      <td className="p-2"><input className="w-full border rounded-md px-2 h-9" value={m.name} onChange={e => updateMenuItem(m.id, { name: e.target.value })} /></td>
-                      <td className="p-2 text-right"><input type="number" inputMode="decimal" className="w-28 border rounded-md px-2 h-9 text-right" value={m.price} onChange={e => updateMenuItem(m.id, { price: Number(e.target.value || 0) })} /></td>
-                      <td className="p-2 text-right"><button className="px-3 h-9 rounded-md border" onClick={() => deleteMenuItem(m.id)}>Delete</button></td>
+                      <td className="p-2"><Input value={m.name} onChange={e => updateMenuItem(m.id, { name: e.target.value })} /></td>
+                      <td className="p-2 text-right"><Input type="number" inputMode="decimal" className="w-28 text-right" value={m.price} onChange={e => updateMenuItem(m.id, { price: Number(e.target.value || 0) })} /></td>
+                      <td className="p-2 text-right"><Button variant="outline" className="px-3" onClick={() => deleteMenuItem(m.id)}>Delete</Button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -249,38 +283,38 @@ export default function App() {
             <div className="grid sm:grid-cols-7 gap-3 items-end">
               <div>
                 <label className="text-xs text-neutral-600">Date</label>
-                <input type="date" className="w-full h-10 rounded-md border px-3" value={pForm.date} onChange={e => setPForm({ ...pForm, date: e.target.value })} />
+                <Input type="date" value={pForm.date} onChange={e => setPForm({ ...pForm, date: e.target.value })} />
               </div>
               <div className="sm:col-span-2">
                 <label className="text-xs text-neutral-600">What did you buy</label>
-                <input className="w-full h-10 rounded-md border px-3" placeholder="Pork bones, noodles" value={pForm.item} onChange={e => setPForm({ ...pForm, item: e.target.value })} />
+                <Input placeholder="Pork bones, noodles" value={pForm.item} onChange={e => setPForm({ ...pForm, item: e.target.value })} />
               </div>
               <div>
                 <label className="text-xs text-neutral-600">Qty</label>
-                <input type="number" inputMode="decimal" className="w-full h-10 rounded-md border px-3" value={pForm.qty} onChange={e => setPForm({ ...pForm, qty: e.target.value })} />
+                <Input type="number" inputMode="decimal" value={pForm.qty} onChange={e => setPForm({ ...pForm, qty: e.target.value })} />
               </div>
               <div>
                 <label className="text-xs text-neutral-600">Unit price</label>
-                <input type="number" inputMode="decimal" className="w-full h-10 rounded-md border px-3" value={pForm.unit} onChange={e => setPForm({ ...pForm, unit: e.target.value })} />
+                <Input type="number" inputMode="decimal" value={pForm.unit} onChange={e => setPForm({ ...pForm, unit: e.target.value })} />
               </div>
               <div>
                 <label className="text-xs text-neutral-600">Total</label>
-                <input type="number" inputMode="decimal" className="w-full h-10 rounded-md border px-3" value={pForm.total} onChange={e => setPForm({ ...pForm, total: e.target.value })} />
+                <Input type="number" inputMode="decimal" value={pForm.total} onChange={e => setPForm({ ...pForm, total: e.target.value })} />
               </div>
               <label className="inline-flex gap-2 items-center text-sm select-none">
                 <input type="checkbox" checked={autoTotal} onChange={e => setAutoTotal(e.target.checked)} />
-                Auto total = qty x unit
+                Auto total = qty × unit
               </label>
             </div>
             <div className="mt-2">
               <label className="text-xs text-neutral-600">Note</label>
-              <textarea rows={2} className="w-full rounded-md border px-3 py-2" placeholder="Supplier or receipt" value={pForm.note} onChange={e => setPForm({ ...pForm, note: e.target.value })}></textarea>
+              <Textarea rows={2} placeholder="Supplier or receipt" value={pForm.note} onChange={e => setPForm({ ...pForm, note: e.target.value })} />
             </div>
             <div className="mt-2 flex gap-2">
-              <button onClick={addPurchase} className="h-10 rounded-md bg-neutral-900 text-white px-4">Save purchase</button>
+              <Button onClick={addPurchase}>Save purchase</Button>
             </div>
 
-            <div className="mt-3 rounded-xl border overflow-hidden">
+            <div className="mt-3 rounded-2xl border overflow-hidden bg-white">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-100">
                   <tr>
@@ -314,30 +348,30 @@ export default function App() {
           <Section title="Daily sales">
             <div className="flex flex-wrap gap-2">
               {menu.map(m => (
-                <button key={m.id} className="px-3 h-10 rounded-md border" onClick={() => addSaleQuick(m.id)}>+1 {m.name}</button>
+                <Button key={m.id} variant="outline" className="px-3" onClick={() => addSaleQuick(m.id)}>+1 {m.name}</Button>
               ))}
               {menu.length === 0 && <p className="text-sm text-neutral-500">Add menu items first</p>}
             </div>
             <div className="grid sm:grid-cols-5 gap-3 items-end mt-3">
               <div>
                 <label className="text-xs text-neutral-600">Date</label>
-                <input type="date" className="w-full h-10 rounded-md border px-3" value={sForm.date} onChange={e => setSForm({ ...sForm, date: e.target.value })} />
+                <Input type="date" value={sForm.date} onChange={e => setSForm({ ...sForm, date: e.target.value })} />
               </div>
               <div className="sm:col-span-2">
                 <label className="text-xs text-neutral-600">Product</label>
-                <select className="w-full h-10 rounded-md border px-3" value={sForm.productId} onChange={e => setSForm({ ...sForm, productId: e.target.value })}>
+                <Select value={sForm.productId} onChange={e => setSForm({ ...sForm, productId: e.target.value })}>
                   <option value="">Pick a product</option>
                   {menu.map(m => <option key={m.id} value={m.id}>{m.name} ({currency(m.price)})</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="text-xs text-neutral-600">Qty</label>
-                <input type="number" inputMode="numeric" className="w-full h-10 rounded-md border px-3" value={sForm.qty} onChange={e => setSForm({ ...sForm, qty: e.target.value })} />
+                <Input type="number" inputMode="numeric" value={sForm.qty} onChange={e => setSForm({ ...sForm, qty: e.target.value })} />
               </div>
-              <button onClick={addSale} className="h-10 rounded-md bg-neutral-900 text-white">Add sale</button>
+              <Button onClick={addSale}>Add sale</Button>
             </div>
 
-            <div className="mt-3 rounded-xl border overflow-hidden">
+            <div className="mt-3 rounded-2xl border overflow-hidden bg-white">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-100">
                   <tr>
@@ -368,51 +402,31 @@ export default function App() {
             title="Summary and report"
             right={
               <>
-                <button
-                  className="h-10 rounded-md border px-3"
-                  onClick={() => {
-                    const now = new Date(); const y = now.getFullYear(); const m = String(now.getMonth() + 1).padStart(2, "0");
-                    const start = `${y}-${m}-01`; const end = new Date(y, now.getMonth() + 1, 0).toISOString().slice(0, 10);
-                    setRange(r => ({ ...r, start, end }));
-                  }}
-                >
-                  This month
-                </button>
-                <button className="h-10 rounded-md bg-neutral-900 text-white px-3" onClick={printSummary}>Print or Save PDF</button>
+                <Button variant="outline" onClick={() => {
+                  const now = new Date(); const y = now.getFullYear(); const m = String(now.getMonth() + 1).padStart(2, "0");
+                  const start = `${y}-${m}-01`; const end = new Date(y, now.getMonth() + 1, 0).toISOString().slice(0, 10);
+                  setRange(r => ({ ...r, start, end }));
+                }}>This month</Button>
+                <Button onClick={printSummary}>Print or Save PDF</Button>
               </>
             }
           >
-            <div className="grid sm:grid-cols-5 gap-3 items-end mb-3">
-              <div>
-                <label className="text-xs text-neutral-600">Start</label>
-                <input type="date" className="w-full h-10 rounded-md border px-3" value={range.start} onChange={e => setRange({ ...range, start: e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs text-neutral-600">End</label>
-                <input type="date" className="w-full h-10 rounded-md border px-3" value={range.end} onChange={e => setRange({ ...range, end: e.target.value })} />
-              </div>
-              <label className="inline-flex items-center gap-2 text-sm select-none pt-6">
-                <input type="checkbox" checked={range.groupByDay} onChange={e => setRange({ ...range, groupByDay: e.target.checked })} />
-                Group by day
-              </label>
-            </div>
-
             <div className="grid sm:grid-cols-3 gap-3 mb-3">
-              <div className="bg-white rounded-xl border p-4">
+              <Card>
                 <div className="text-sm text-neutral-600">Revenue</div>
                 <div className="text-2xl font-bold">{currency(totals.revenue)}</div>
-              </div>
-              <div className="bg-white rounded-xl border p-4">
+              </Card>
+              <Card>
                 <div className="text-sm text-neutral-600">Expenses</div>
                 <div className="text-2xl font-bold">{currency(totals.expense)}</div>
-              </div>
-              <div className="bg-white rounded-xl border p-4">
+              </Card>
+              <Card>
                 <div className="text-sm text-neutral-600">Profit</div>
-                <div className={`text-2xl font-bold ${totals.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{currency(totals.profit)}</div>
-              </div>
+                <div className={cx("text-2xl font-bold", totals.profit >= 0 ? "text-emerald-600" : "text-red-600")}>{currency(totals.profit)}</div>
+              </Card>
             </div>
 
-            <div className="rounded-xl border overflow-hidden mb-3">
+            <div className="rounded-2xl border overflow-hidden mb-3 bg-white">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-100">
                   <tr>
@@ -427,9 +441,7 @@ export default function App() {
                   {[...groupedSales.entries()].map(([key, list]) => (
                     <Fragment key={key}>
                       {range.groupByDay && (
-                        <tr className="bg-neutral-50 border-t">
-                          <td className="p-2 font-medium" colSpan={5}>{key}</td>
-                        </tr>
+                        <tr className="bg-neutral-50 border-t"><td className="p-2 font-medium" colSpan={5}>{key}</td></tr>
                       )}
                       {list.map(s => (
                         <tr key={s.id} className="border-t">
@@ -446,7 +458,7 @@ export default function App() {
               </table>
             </div>
 
-            <div className="rounded-xl border overflow-hidden">
+            <div className="rounded-2xl border overflow-hidden bg-white">
               <table className="w-full text-sm">
                 <thead className="bg-neutral-100">
                   <tr>
@@ -472,31 +484,29 @@ export default function App() {
                 </tbody>
               </table>
             </div>
-
-            <div className="text-xs text-neutral-500 mt-2">
-              Report period {range.start} to {range.end}. Generated for {biz.name} at {new Date().toLocaleString()}.
-            </div>
+            <div className="text-xs text-neutral-500 mt-2">Report period {range.start} to {range.end}. Generated for {biz.name} at {new Date().toLocaleString()}.</div>
           </Section>
         )}
 
         {tab === "backup" && (
           <Section title="Backup and data">
             <div className="flex flex-wrap gap-2 mb-2">
-              <button className="h-10 rounded-md bg-neutral-900 text-white px-3" onClick={exportJSON}>Export JSON</button>
-              <label className="h-10 rounded-md border px-3 inline-flex items-center gap-2 cursor-pointer">
+              <Button onClick={exportJSON}>Export JSON</Button>
+              <label className="h-10 rounded-xl border px-4 inline-flex items-center gap-2 cursor-pointer bg-white shadow-sm">
                 <input type="file" accept="application/json" className="hidden" onChange={e => e.target.files?.[0] && importJSON(e.target.files[0])} />
                 Import JSON
               </label>
-              <button className="h-10 rounded-md border px-3" onClick={clearAll}>Clear all data</button>
+              <Button variant="outline" onClick={clearAll}>Clear all data</Button>
             </div>
             <p className="text-sm text-neutral-600">Data is saved on this device using localStorage. To move to another device, export JSON and import on the other device.</p>
           </Section>
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t">
-        <div className="max-w-3xl mx-auto px-4 py-2 text-center text-xs text-neutral-500">
-          Ramen Naijiro Weekly Tracker. Tip: open Report and press Print to save a PDF.
+      {/* Footer */}
+      <footer className="fixed bottom-0 left-0 right-0">
+        <div className="max-w-3xl mx-auto px-4 py-2 text-center text-xs text-neutral-700/80 bg-white/90 backdrop-blur border-t">
+          Tip: go to <span className="font-medium">Report</span> and press <span className="font-medium">Print</span> to save a PDF.
         </div>
       </footer>
     </div>
