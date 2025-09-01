@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, Fragment } from "react";
 import { toast } from "sonner";
 
 /* ---------- helpers ---------- */
+const APP_NAME = "Ramen Naijiro";
 const cx = (...c) => c.filter(Boolean).join(" ");
 const currency = (n) => {
   const num = Number(n);
@@ -70,24 +71,28 @@ function Tabs({ value, onChange }) {
     { id: "backup", name: "Backup" },
   ];
   return (
-    <div className="sticky top-[60px] z-10 mb-3">
-      <div className="bg-white/70 backdrop-blur rounded-2xl border p-1 flex gap-1">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => onChange(t.id)}
-            className={cx(
-              "h-10 flex-1 rounded-xl text-sm font-medium transition",
-              value === t.id
-                ? "bg-ramen-600 text-white shadow"
-                : "bg-transparent hover:bg-neutral-100 text-neutral-800"
-            )}
-          >
-            {t.name}
-          </button>
-        ))}
+    <nav className="bg-white border-b">
+      <div className="max-w-3xl mx-auto px-4">
+        <ul className="flex gap-1">
+          {tabs.map(t => {
+            const active = value === t.id;
+            return (
+              <li key={t.id}>
+                <button
+                  onClick={() => onChange(t.id)}
+                  className={`h-10 px-3 text-sm font-medium transition
+                    ${active
+                      ? "text-red-700 border-b-2 border-red-600"
+                      : "text-neutral-700 border-b-2 border-transparent hover:text-red-700 hover:bg-neutral-50"}`}
+                >
+                  {t.name}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-    </div>
+    </nav>
   );
 }
 
@@ -206,22 +211,20 @@ export default function App() {
   }, [pForm.qty, pForm.unit, autoTotal]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ramen-50 to-neutral-50 text-neutral-900 font-sans">
-      {/* Top bar */}
-      <div className="bg-ramen-600 text-white">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Logo />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold">Ramen Naijiro</div>
-            <div className="text-xs/4 opacity-90">{biz.location}</div>
-          </div>
-          <div className="ml-auto text-xs opacity-90">{biz.owner}</div>
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      {/* Red header */}
+      <header className="bg-red-600 shadow-md">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <h1 className="text-white font-bold text-xl">{APP_NAME} Tracker</h1>
         </div>
-      </div>
+      </header>
 
+    {/* Nav directly under the red header */}
+    <Tabs value={tab} onChange={setTab} />
       {/* Content */}
       <main className="max-w-3xl mx-auto px-4 py-5 pb-28">
-        <Section title="Business info">
+        {/* Removing this because it is useless. Only one person is using this. */}
+        {/* <Section title="Business info">
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-neutral-600">Business name</label>
@@ -236,7 +239,7 @@ export default function App() {
               <Input value={biz.location} onChange={e => setBiz({ ...biz, location: e.target.value })} />
             </div>
           </div>
-        </Section>
+        </Section> */}
 
         <Tabs value={tab} onChange={setTab} />
 
